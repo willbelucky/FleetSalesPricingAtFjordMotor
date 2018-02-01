@@ -91,7 +91,7 @@ def get_optimal_price(intercept, beta_1, beta_2, unit_number):
 
 if __name__ == '__main__':
     # 3_A
-    print('What is the resulting improvement in total log likelihood?')
+    print('3_A. What is the resulting improvement in total log likelihood?')
     all_data, all_y_observation, all_x = get_data_y_x(get_all_data)
     average_unit_number = all_data[data_column.UNIT_NUMBER].mean()
     all_intercept, all_beta_1, all_beta_2 = maximize_log_likelihood(all_y_observation, all_x)
@@ -101,7 +101,7 @@ if __name__ == '__main__':
     print('-' * 70)
 
     # 3_B
-    print('How does this compare with the improvement from differentiating police and corporate sales?')
+    print('3_B. How does this compare with the improvement from differentiating police and corporate sales?')
     print('The police')
     police_data, police_y_observation, police_x = get_data_y_x(get_police_data)
     police_intercept, police_beta_1, police_beta_2 = maximize_log_likelihood(
@@ -152,7 +152,7 @@ if __name__ == '__main__':
     print('-' * 70)
 
     # 3_C
-    print('What are the optimal prices Fjord should charge for orders of 20 cars '
+    print('3_C. What are the optimal prices Fjord should charge for orders of 20 cars '
           'and for orders of 40 cars to police departments and to corporate purchasers, respectively?')
     print('The police for orders of 20 cars')
     police_optimal_price = get_optimal_price(police_intercept, police_beta_1, police_beta_2, 20)
@@ -191,7 +191,7 @@ if __name__ == '__main__':
     print('-' * 70)
 
     # 4_A
-    print('How would this change the optimal price charged to police departments for 20 vehicles?')
+    print('4_A. How would this change the optimal price charged to police departments for 20 vehicles?')
     police_intercept, police_beta_1, police_beta_2 = maximize_log_likelihood(
         police_y_observation,
         police_x,
@@ -208,7 +208,7 @@ if __name__ == '__main__':
     print('-' * 70)
 
     # 4_B
-    print('How would this change the optimal price charged to police departments for 40 vehicles?')
+    print('4_B. How would this change the optimal price charged to police departments for 40 vehicles?')
     police_intercept, police_beta_1, police_beta_2 = maximize_log_likelihood(
         police_y_observation,
         police_x,

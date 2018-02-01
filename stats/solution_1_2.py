@@ -78,35 +78,35 @@ def get_optimal_price(intercept, beta_1):
 
 if __name__ == '__main__':
     # 1_A
-    print('What are the value of a and b that maximize the sum of log likelihood?')
+    print('1_A. What are the value of a and b that maximize the sum of log likelihood?')
     all_data, all_y_observation, all_x = get_data_y_x(get_all_data)
     all_intercept, all_beta_1 = maximize_log_likelihood(all_y_observation, all_x)
     print('a:{:.3f}, b:{:.3f}'.format(all_intercept, all_beta_1))
     print('-' * 70)
 
     # 1_B
-    print('What is the optimum price Fjord should offer, assuming it is going to offer a single price for each bid?')
+    print('1_B. What is the optimum price Fjord should offer, '
+          'assuming it is going to offer a single price for each bid?')
     all_optimal_price = get_optimal_price(all_intercept, all_beta_1)
     print(all_optimal_price)
     print('-' * 70)
 
     # 1_C
-    print('What would the expected total contribution have been for the 4,000 bids?')
-    all_optimal_total_contribution \
-        = -negative_margin_model(all_optimal_price, all_intercept, all_beta_1) * all_data[
+    print('1_C. What would the expected total contribution have been for the 4,000 bids?')
+    all_optimal_total_contribution = -negative_margin_model(all_optimal_price, all_intercept, all_beta_1) * all_data[
         data_column.UNIT_NUMBER].sum()
     print(all_optimal_total_contribution)
     print('-' * 70)
 
     # 1_D
-    print('How does this compare to the contribution that Fjord actually received?')
+    print('1_D. How does this compare to the contribution that Fjord actually received?')
     actual_total_contribution = all_data[data_column.TOTAL_MARGIN].sum()
     print('The optimal total contribution is {:.3f} times the actual total contribution.'.format(
         all_optimal_total_contribution / actual_total_contribution))
     print('-' * 70)
 
     # 2_A
-    print('What are the corresponding values of a and b for each?')
+    print('2_A. What are the corresponding values of a and b for each?')
     print('The police')
     police_data, police_y_observation, police_x = get_data_y_x(get_police_data)
     police_intercept, police_beta_1 = maximize_log_likelihood(police_y_observation, police_x)
@@ -122,19 +122,19 @@ if __name__ == '__main__':
     print('-' * 70)
 
     # 2_B
-    print('What are the optimum prices Fjord should offer to the police?')
+    print('2_B. What are the optimum prices Fjord should offer to the police?')
     police_optimal_price = get_optimal_price(police_intercept, police_beta_1)
     print(police_optimal_price)
     print('-' * 70)
 
     # 2_C
-    print('What are the optimum prices Fjord should offer to corporate buyer?')
+    print('2_C. What are the optimum prices Fjord should offer to corporate buyer?')
     corporate_buyer_optimal_price = get_optimal_price(corporate_buyer_intercept, corporate_buyer_beta_1)
     print(corporate_buyer_optimal_price)
     print('-' * 70)
 
     # 2_D
-    print('What would the expected contribution have been '
+    print('2_D. What would the expected contribution have been '
           'if Fjord had used the prices in the 4,000 bids in the database?')
     police_optimal_total_contribution = -negative_margin_model(
         police_optimal_price, police_intercept, police_beta_1
@@ -147,7 +147,7 @@ if __name__ == '__main__':
     print('-' * 70)
 
     # 2_E
-    print('What is the difference between the contribution actually received and the best '
+    print('2_E. What is the difference between the contribution actually received and the best '
           'that Fjord could do when it could not differentiate between the police and corporate buyers?')
     print('The sum of the police and corporate buyer optimal total contribution is {:.3f} times the actual total '
           'contribution.'.format(optimal_total_contribution_sum / actual_total_contribution))
