@@ -82,6 +82,19 @@ def get_data_y_x(get_data_function):
     return data, y_observation, x
 
 
+def get_all_data_y_x_police():
+    data = get_all_data()
+    # Set up your observed y values.
+    y_observation = data[data_column.WIN].values
+    # Set up your x values.
+    data[data_column.UNIT_PRICE] = data[data_column.UNIT_PRICE] / MSRP
+    data[data_column.POLICE] = 0
+    data.loc[:2000, data_column.POLICE] = 1
+    x = (data[[data_column.UNIT_PRICE, data_column.POLICE]]).values
+
+    return data, y_observation, x
+
+
 def get_optimal_price(intercept, beta_1, beta_2, unit_number):
     # Minimize a negative margin for maximizing a margin.
     optimal_price = \
@@ -90,13 +103,23 @@ def get_optimal_price(intercept, beta_1, beta_2, unit_number):
 
 
 if __name__ == '__main__':
+    # 2_A_b
+    print('2_A_b. Now estimate these values using the entire data but creating a dummy variable "police" '
+          'and an interaction variable for "police" and "p". Paste these results and show that these estimates '
+          'are equivalent to the ones obtained in 2_A_a.')
+    interaction_data, interaction_y_observation, interaction_x = get_all_data_y_x_police()
+    interaction_intercept, interaction_beta_1, interaction_beta_2 = maximize_log_likelihood(
+        interaction_y_observation, interaction_x)
+    print('a:{:.3f}, b:{:.3f}, police:{:.3f}'.format(interaction_intercept, interaction_beta_1, interaction_beta_2))
+    print('-' * 70)
+
     # 3_A
     print('3_A. What is the resulting improvement in total log likelihood?')
     all_data, all_y_observation, all_x = get_data_y_x(get_all_data)
     average_unit_number = all_data[data_column.UNIT_NUMBER].mean()
     all_intercept, all_beta_1, all_beta_2 = maximize_log_likelihood(all_y_observation, all_x)
     all_optimal_price = get_optimal_price(all_intercept, all_beta_1, all_beta_2, average_unit_number)
-    print('a:{:.3f}, b:{:.3f}, c:{:.3f}, optimal_price:{}'.format(all_intercept, all_beta_1, all_beta_2,
+    print('a:{:.3f}, b:{:.3f}, c:{:.3f}, optimal_price:{:.3f}'.format(all_intercept, all_beta_1, all_beta_2,
                                                                   all_optimal_price))
     print('-' * 70)
 
