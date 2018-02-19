@@ -4,7 +4,6 @@
 :Date: 2018. 1. 30.
 """
 import numpy as np
-import scipy.stats as stats
 from scipy.optimize import minimize
 
 from data import data_column
@@ -18,19 +17,31 @@ MSRP = 25000
 INITIAL_GUESS = np.array([(COST + MSRP) / 2])
 
 
-def probability_of_winning_to_bid_model(intercept, beta_1, unit_prices):
-    return 1 / (1 + np.exp(intercept + beta_1 * unit_prices))
+def get_logistic_probability(intercept, beta_1, unit_prices):
+    """
+    Calculate a logistic probability.
+
+    :param intercept: (float) The intercept value.
+    :param beta_1: (float) The list of beta.
+    :param unit_prices: (np.arrayp[float]) The list of x.
+
+    :return logistic_probability: (float)
+        ln(alpha + beta_1 * x_1 + beta_2 * x_2 + ...) / (1 + ln(alpha + beta_1 * x_1 + beta_2 * x_2 + ...))
+    """
+    logistic_probability = np.exp(intercept + beta_1 * unit_prices) / (1 + np.exp(intercept + beta_1 * unit_prices))
+    return logistic_probability
 
 
-def negative_margin_model(unit_price, *args):
+def get_negative_expected_margin(unit_price, *args):
     intercept = args[0]
     beta_1 = args[1]
-    probability = probability_of_winning_to_bid_model(intercept, beta_1, unit_prices=unit_price / MSRP)
+    probability = get_logistic_probability(intercept, beta_1, unit_prices=unit_price / MSRP)
     unit_margin = unit_price - COST
-    return -probability * unit_margin
+    negative_expected_margin = -probability * unit_margin
+    return negative_expected_margin
 
 
-def negative_log_likelihood(params, *args):
+def get_negative_log_likelihood(params, *args):
     intercept = params[0]
     beta_1 = params[1]
 
@@ -38,21 +49,27 @@ def negative_log_likelihood(params, *args):
     unit_prices = np.array(args[1])
 
     # Calculate the predicted values from the initial parameter guesses
-    y_predictions = probability_of_winning_to_bid_model(intercept, beta_1, unit_prices)
+    win_probabilities = get_logistic_probability(intercept, beta_1, unit_prices)
 
     # Calculate the log-likelihood.
-    log_likelihood = np.sum(stats.norm.logpdf(y_observations, loc=y_predictions))
+    negative_log_likelihood = -get_log_likelihood_sum(y_observations, win_probabilities)
 
     # Return the negative log likelihood.
-    return -log_likelihood
+    return negative_log_likelihood
+
+
+def get_log_likelihood_sum(y_observations, win_probabilities):
+    log_likelihood_sum = np.sum(
+        np.log(np.power(win_probabilities, y_observations) * np.power((1 - win_probabilities), (1 - y_observations))))
+    return log_likelihood_sum
 
 
 def maximize_log_likelihood(y, x):
     # Make a list of initial parameter guesses (intercept, beta_1)
-    initial_guess = np.array([1, 0])
+    initial_guess = np.array([0, 0])
 
     # Minimize a negative log likelihood for maximizing a log likelihood.
-    results = minimize(negative_log_likelihood, x0=initial_guess, args=(y, x))
+    results = minimize(get_negative_log_likelihood, x0=initial_guess, args=(y, x))
 
     intercept = results.x[0]
     beta_1 = results.x[1]
@@ -72,7 +89,7 @@ def get_data_y_x(get_data_function):
 
 def get_optimal_price(intercept, beta_1):
     # Minimize a negative margin for maximizing a margin.
-    optimal_price = minimize(negative_margin_model, INITIAL_GUESS, args=(intercept, beta_1)).x[0]
+    optimal_price = minimize(get_negative_expected_margin, INITIAL_GUESS, args=(intercept, beta_1)).x[0]
     return optimal_price
 
 
@@ -93,7 +110,7 @@ if __name__ == '__main__':
 
     # 1_C
     print('1_C. What would the expected total contribution have been for the 4,000 bids?')
-    all_optimal_total_contribution = -negative_margin_model(all_optimal_price, all_intercept, all_beta_1) * all_data[
+    all_optimal_total_contribution = -get_negative_expected_margin(all_optimal_price, all_intercept, all_beta_1) * all_data[
         data_column.UNIT_NUMBER].sum()
     print(all_optimal_total_contribution)
     print('-' * 70)
@@ -136,10 +153,10 @@ if __name__ == '__main__':
     # 2_D
     print('2_D. What would the expected contribution have been '
           'if Fjord had used the prices in the 4,000 bids in the database?')
-    police_optimal_total_contribution = -negative_margin_model(
+    police_optimal_total_contribution = -get_negative_expected_margin(
         police_optimal_price, police_intercept, police_beta_1
     ) * police_data[data_column.UNIT_NUMBER].sum()
-    corporate_buyer_optimal_total_contribution = -negative_margin_model(
+    corporate_buyer_optimal_total_contribution = -get_negative_expected_margin(
         corporate_buyer_optimal_price, corporate_buyer_intercept, corporate_buyer_beta_1
     ) * corporate_buyer_data[data_column.UNIT_NUMBER].sum()
     optimal_total_contribution_sum = police_optimal_total_contribution + corporate_buyer_optimal_total_contribution

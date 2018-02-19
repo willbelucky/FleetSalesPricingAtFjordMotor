@@ -4,7 +4,6 @@
 :Date: 2018. 1. 30.
 """
 import numpy as np
-import scipy.stats as stats
 from scipy.optimize import minimize
 
 from data import data_column
@@ -19,18 +18,19 @@ MSRP = 25000
 INITIAL_PRICE_GUESS = np.array([20000])
 
 
-def probability_of_winning_to_bid_model(intercept, beta_1, beta_2, unit_prices, unit_numbers):
-    return 1 / (1 + np.exp(intercept + beta_1 * unit_prices + beta_2 * unit_numbers))
+def get_logistic_probability(intercept, beta_1, beta_2, unit_prices, unit_numbers):
+    exp = np.exp(intercept + beta_1 * unit_prices + beta_2 * unit_numbers)
+    return exp / (1 + exp)
 
 
-def negative_margin_model(unit_price, *args):
+def get_negative_margin_model(unit_price, *args):
     different_cost = args[0]
     intercept = args[1]
     beta_1 = args[2]
     beta_2 = args[3]
     unit_number = args[4]
-    probability = probability_of_winning_to_bid_model(intercept, beta_1, beta_2, unit_prices=unit_price / MSRP,
-                                                      unit_numbers=unit_number)
+    probability = get_logistic_probability(intercept, beta_1, beta_2, unit_prices=unit_price / MSRP,
+                                           unit_numbers=unit_number)
     if different_cost:
         unit_margin = unit_price - DIFFERENT_COST
     else:
@@ -38,7 +38,7 @@ def negative_margin_model(unit_price, *args):
     return -probability * unit_margin
 
 
-def negative_log_likelihood(params, *args):
+def get_negative_log_likelihood(params, *args):
     intercept = params[0]
     beta_1 = params[1]
     beta_2 = params[2]
@@ -48,13 +48,19 @@ def negative_log_likelihood(params, *args):
     unit_numbers = np.array(args[1][:, 1])
 
     # Calculate the predicted values from the initial parameter guesses
-    y_predictions = probability_of_winning_to_bid_model(intercept, beta_1, beta_2, unit_prices, unit_numbers)
+    y_predictions = get_logistic_probability(intercept, beta_1, beta_2, unit_prices, unit_numbers)
 
     # Calculate the log-likelihood.
-    log_likelihood = np.sum(stats.norm.logpdf(y_observations, loc=y_predictions))
+    negative_log_likelihood = -get_log_likelihood_sum(y_observations, y_predictions)
 
     # Return the negative log likelihood.
-    return -log_likelihood
+    return negative_log_likelihood
+
+
+def get_log_likelihood_sum(y_observations, win_probabilities):
+    log_likelihood_sum = np.sum(
+        np.log(np.power(win_probabilities, y_observations) * np.power((1 - win_probabilities), (1 - y_observations))))
+    return log_likelihood_sum
 
 
 def maximize_log_likelihood(y, x, different_cost=False):
@@ -62,7 +68,7 @@ def maximize_log_likelihood(y, x, different_cost=False):
     initial_guess = np.array([different_cost, 1, 0, 0])
 
     # Minimize a negative log likelihood for maximizing a log likelihood.
-    results = minimize(negative_log_likelihood, x0=initial_guess, args=(y, x))
+    results = minimize(get_negative_log_likelihood, x0=initial_guess, args=(y, x))
 
     intercept = results.x[0]
     beta_1 = results.x[1]
@@ -82,37 +88,14 @@ def get_data_y_x(get_data_function):
     return data, y_observation, x
 
 
-def get_all_data_y_x_police():
-    data = get_all_data()
-    # Set up your observed y values.
-    y_observation = data[data_column.WIN].values
-    # Set up your x values.
-    data[data_column.UNIT_PRICE] = data[data_column.UNIT_PRICE] / MSRP
-    data[data_column.POLICE] = 0
-    data.loc[:2000, data_column.POLICE] = 1
-    x = (data[[data_column.UNIT_PRICE, data_column.POLICE]]).values
-
-    return data, y_observation, x
-
-
 def get_optimal_price(intercept, beta_1, beta_2, unit_number):
     # Minimize a negative margin for maximizing a margin.
     optimal_price = \
-        minimize(negative_margin_model, INITIAL_PRICE_GUESS, args=(False, intercept, beta_1, beta_2, unit_number)).x[0]
+        minimize(get_negative_margin_model, INITIAL_PRICE_GUESS, args=(False, intercept, beta_1, beta_2, unit_number)).x[0]
     return optimal_price
 
 
 if __name__ == '__main__':
-    # 2_A_b
-    print('2_A_b. Now estimate these values using the entire data but creating a dummy variable "police" '
-          'and an interaction variable for "police" and "p". Paste these results and show that these estimates '
-          'are equivalent to the ones obtained in 2_A_a.')
-    interaction_data, interaction_y_observation, interaction_x = get_all_data_y_x_police()
-    interaction_intercept, interaction_beta_1, interaction_beta_2 = maximize_log_likelihood(
-        interaction_y_observation, interaction_x)
-    print('a:{:.3f}, b:{:.3f}, police:{:.3f}'.format(interaction_intercept, interaction_beta_1, interaction_beta_2))
-    print('-' * 70)
-
     # 3_A
     print('3_A. What is the resulting improvement in total log likelihood?')
     all_data, all_y_observation, all_x = get_data_y_x(get_all_data)
@@ -120,7 +103,7 @@ if __name__ == '__main__':
     all_intercept, all_beta_1, all_beta_2 = maximize_log_likelihood(all_y_observation, all_x)
     all_optimal_price = get_optimal_price(all_intercept, all_beta_1, all_beta_2, average_unit_number)
     print('a:{:.3f}, b:{:.3f}, c:{:.3f}, optimal_price:{:.3f}'.format(all_intercept, all_beta_1, all_beta_2,
-                                                                  all_optimal_price))
+                                                                      all_optimal_price))
     print('-' * 70)
 
     # 3_B
@@ -153,7 +136,7 @@ if __name__ == '__main__':
         corporate_buyer_optimal_price
     ))
 
-    police_optimal_total_contribution = -negative_margin_model(
+    police_optimal_total_contribution = -get_negative_margin_model(
         False,
         police_optimal_price,
         police_intercept,
@@ -162,7 +145,7 @@ if __name__ == '__main__':
         average_unit_number
     ) * police_data[data_column.UNIT_NUMBER].sum()
 
-    corporate_buyer_optimal_total_contribution = -negative_margin_model(
+    corporate_buyer_optimal_total_contribution = -get_negative_margin_model(
         False,
         corporate_buyer_optimal_price, corporate_buyer_intercept,
         corporate_buyer_beta_1,
@@ -179,7 +162,7 @@ if __name__ == '__main__':
           'and for orders of 40 cars to police departments and to corporate purchasers, respectively?')
     print('The police for orders of 20 cars')
     police_optimal_price = get_optimal_price(police_intercept, police_beta_1, police_beta_2, 20)
-    print('a:{:.3f}, b:{:.3f}, c:{:.3f}, optimal_price:{}'.format(
+    print('a:{:.3f}, b:{:.3f}, c:{:.3f}, optimal_price:{:.3f}'.format(
         police_intercept,
         police_beta_1,
         police_beta_2,
@@ -187,7 +170,7 @@ if __name__ == '__main__':
     ))
     print('The police for orders of 40 cars')
     police_optimal_price = get_optimal_price(police_intercept, police_beta_1, police_beta_2, 40)
-    print('a:{:.3f}, b:{:.3f}, c:{:.3f}, optimal_price:{}'.format(
+    print('a:{:.3f}, b:{:.3f}, c:{:.3f}, optimal_price:{:.3f}'.format(
         police_intercept,
         police_beta_1,
         police_beta_2,
@@ -196,7 +179,7 @@ if __name__ == '__main__':
     print('Corporate buyers for orders of 20 cars')
     corporate_buyer_optimal_price = get_optimal_price(corporate_buyer_intercept, corporate_buyer_beta_1,
                                                       corporate_buyer_beta_2, 20)
-    print('a:{:.3f}, b:{:.3f}, c:{:.3f}, optimal_price:{}'.format(
+    print('a:{:.3f}, b:{:.3f}, c:{:.3f}, optimal_price:{:.3f}'.format(
         corporate_buyer_intercept,
         corporate_buyer_beta_1,
         corporate_buyer_beta_2,
@@ -205,7 +188,7 @@ if __name__ == '__main__':
     print('Corporate buyers for orders of 40 cars')
     corporate_buyer_optimal_price = get_optimal_price(corporate_buyer_intercept, corporate_buyer_beta_1,
                                                       corporate_buyer_beta_2, 40)
-    print('a:{:.3f}, b:{:.3f}, c:{:.3f}, optimal_price:{}'.format(
+    print('a:{:.3f}, b:{:.3f}, c:{:.3f}, optimal_price:{:.3f}'.format(
         corporate_buyer_intercept,
         corporate_buyer_beta_1,
         corporate_buyer_beta_2,
@@ -214,6 +197,8 @@ if __name__ == '__main__':
     print('-' * 70)
 
     # 4_A
+    print('4. The police version of the of the Coronet Elizabeth costs $16,000 to manufacture '
+          'versus $15,000 for the corporate version.')
     print('4_A. How would this change the optimal price charged to police departments for 20 vehicles?')
     police_intercept, police_beta_1, police_beta_2 = maximize_log_likelihood(
         police_y_observation,
@@ -221,7 +206,7 @@ if __name__ == '__main__':
         False
     )
     police_optimal_price = get_optimal_price(police_intercept, police_beta_1, police_beta_2, 20)
-    print('a:{:.3f}, b:{:.3f}, c:{:.3f}, optimal_price:{}'.format(
+    print('a:{:.3f}, b:{:.3f}, c:{:.3f}, optimal_price:{:.3f}'.format(
         police_intercept,
         police_beta_1,
         police_beta_2,
@@ -238,7 +223,7 @@ if __name__ == '__main__':
         False
     )
     police_optimal_price = get_optimal_price(police_intercept, police_beta_1, police_beta_2, 40)
-    print('a:{:.3f}, b:{:.3f}, c:{:.3f}, optimal_price:{}'.format(
+    print('a:{:.3f}, b:{:.3f}, c:{:.3f}, optimal_price:{:.3f}'.format(
         police_intercept,
         police_beta_1,
         police_beta_2,
